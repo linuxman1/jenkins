@@ -1,0 +1,81 @@
+pipeline {
+  agent {
+    kubernetes {
+      yaml '''
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: maven
+            image: maven:3.8.1-jdk-8
+            command:
+            - sleep
+            args:
+            - 99d
+          - name: docker
+            image: docker:19.03
+            command:
+            - sleep
+            args:
+            - 99d
+            volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+          volumes:
+          - name: docker-sock
+            hostPath:
+              path: /var/run/docker.sock
+      '''
+    }
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+    stage('Static Code Analysis') {
+      steps {
+        container('maven') {
+          sh 'mvn sonar:sonar'
+        }
+      }
+    }
+    stage('Dependency Check') {
+      steps {
+        container('maven') {
+          sh 'mvn org.owasp:dependency-check-maven:check'
+        }
+      }
+    }
+    stage('Build') {
+      steps {
+        container('maven') {
+          sh 'mvn clean package'
+        }
+      }
+    }
+    stage('Docker Build and Push') {
+      steps {
+        container('docker') {
+          sh 'docker build -t your-repo/your-app:$BUILD_NUMBER .'
+          sh 'docker push your-repo/your-app:$BUILD_NUMBER'
+        }
+      }
+    }
+    stage('Security Scan') {
+      steps {
+        container('docker') {
+          sh 'docker run --rm aquasec/trivy:latest image your-repo/your-app:$BUILD_NUMBER'
+        }
+      }
+    }
+    stage('Deploy to Kubernetes') {
+      steps {
+        container('docker') {
+          sh 'kubectl apply -f k8s-manifests/'
+        }
+      }
+    }
+  }
+}
