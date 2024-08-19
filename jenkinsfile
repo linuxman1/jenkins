@@ -58,15 +58,15 @@ pipeline {
     stage('Docker Build and Push') {
       steps {
         container('docker') {
-          sh 'docker build -t your-repo/your-app:$BUILD_NUMBER .'
-          sh 'docker push your-repo/your-app:$BUILD_NUMBER'
+          sh 'docker build -t linuxman1/sonar-test:$BUILD_NUMBER .'
+          sh 'docker push linuxman1/sonar-test:$BUILD_NUMBER'
         }
       }
     }
     stage('Security Scan') {
       steps {
         container('docker') {
-          sh 'docker run --rm aquasec/trivy:latest image your-repo/your-app:$BUILD_NUMBER'
+          sh 'docker run --rm aquasec/trivy:latest image linuxman1/sonar-test:$BUILD_NUMBER'
         }
       }
     }
